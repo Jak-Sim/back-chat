@@ -1,5 +1,6 @@
 const redisClient = require('../redis/redisClient');
 const db = require('../config/dbConfig');
+const { publish } = require('../redis/redisPubSub');
 
 const createRoom = async (roomName, type, participants, createUserId) => {
     const connection = await db.getConnection();
@@ -24,6 +25,7 @@ const createRoom = async (roomName, type, participants, createUserId) => {
     }
 };
 
+//TODO: Implement the saveMessage function > save the message to Redis and MySQL (로직 생각하기)
 const saveMessage = async (roomId, userId, message) => {
     const timestamp = Date.now();
     const messageData = JSON.stringify({ userId, message, timestamp });
@@ -52,27 +54,52 @@ const saveMessage = async (roomId, userId, message) => {
 };
 
 const getChatList = async (userId) => {
-    const roomList = []; // 유저가 참여한 방 목록
+    const roomList = [];
+    const connection = await db.getConnection();
+    try {
+        const [rooms] = await connection.query(
+            `SELECT r.room_id, r.room_name, r.room_type
+             FROM chat_rooms r
+             JOIN chat_participants p ON r.room_id = p.room_id
+             WHERE p.user_id = ?`, [userId]
+        );
 
-    const rooms = await redisClient.lrange(`user:${userId}:rooms`, 0, -1);
+        for (const room of rooms) {
+            const roomInfo = await redisClient.hgetall(`room:${room.room_id}`);
+            const hasNewMessages = !!(roomInfo && roomInfo.newMessages);
 
-    for (const roomId of rooms) {
-        const roomInfo = await redisClient.hgetall(`room:${roomId}`);
-        const hasNewMessages = !!(roomInfo && roomInfo.newMessages);
-
-        roomList.push({
-            roomId,
-            lastMessage: roomInfo.lastMessage,
-            lastTimestamp: roomInfo.lastTimestamp,
-            hasNewMessages,
-        });
+            roomList.push({
+                roomId: room.room_id,
+                roomName: room.room_name,
+                roomType: room.room_type,
+                lastMessage: roomInfo ? roomInfo.lastMessage : null,
+                lastTimestamp: roomInfo ? roomInfo.lastTimestamp : null,
+                hasNewMessages,
+            });
+        }
+    } finally {
+        connection.release();
     }
 
     return roomList;
+};
+
+const getChatMessages = async (roomId) => {
+    try {
+        const messages = await redisClient.lrange(`room:${roomId}:messages`, 0, -1);
+        const parsedMessages = messages.map(msg => JSON.parse(msg));
+
+        return parsedMessages;
+    } catch (error) {
+        console.error(`Error fetching messages for room ${roomId}:`, error);
+        throw new Error('Failed to fetch messages');
+    }
 };
 
 module.exports = { 
     createRoom,
     saveMessage, 
     getChatList,
+    getChatMessages,
+    
 };

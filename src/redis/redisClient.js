@@ -1,6 +1,5 @@
 const redis = require('redis');
 
-// Redis 클라이언트 생성
 const client = redis.createClient({
     url: 'redis://localhost:6379',
     retry_strategy: function(options) {
@@ -18,7 +17,6 @@ const client = redis.createClient({
     }
 });
 
-// 이벤트 설정
 client.on('error', (err) => {
     console.error('Redis Client Error', err);
 });

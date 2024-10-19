@@ -1,5 +1,5 @@
 const redisClient = require('../redis/redisClient');
-const { saveMessage, getChatList, createRoom } = require('../services/chatService');
+const { getChatMessages, getChatList, createRoom } = require('../services/chatService');
 
 const createChatRoomController = async (req, res) => {
     const { roomName, type, participants } = req.body;
@@ -41,15 +41,20 @@ const getChatRoomListController = async (req, res) => {
     }
 };
 
-const sendMessageController = async (req, res) => {
-    const { roomId, userId, message } = req.body;
+const getChatMessagesController = async (req, res) => {
+    const { roomId } = req.params;
     try {
-        await saveMessage(roomId, userId, message); 
-        res.status(200).json({ message: 'Message sent successfully' });
+        const messages = await getChatMessages(roomId);
+        res.status(200).json(messages);
     } catch (error) {
-        console.error('Failed to send message:', error);
-        res.status(500).json({ message: 'Failed to send message' });
+        console.error(`Error in getChatMessagesController:`, error);
+        res.status(500).json({ message: 'Failed to fetch chat messages' });
     }
 };
 
-module.exports = { getChatRoomListController, createChatRoomController, deleteRoomController, sendMessageController };
+module.exports = { 
+    createChatRoomController, 
+    deleteRoomController, 
+    getChatRoomListController,
+    getChatMessagesController,
+};
