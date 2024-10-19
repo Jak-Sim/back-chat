@@ -1,31 +1,36 @@
 const redisClient = require('../redis/redisClient');
-const { saveMessage, getChatList } = require('../services/chatService');
+const { saveMessage, getChatList, createRoom } = require('../services/chatService');
 
+const createChatRoomController = async (req, res) => {
+    const { roomName, type, participants } = req.body;
+    const createUserId = req.headers['user-id'];
 
-// 채팅방 생성 (단체 채팅방, 1:1 채팅방)
-const createRoom = async (req, res) => {
-    const { roomId, type, participants } = req.body;  // type: 'group' or 'one-on-one'
+    if (!createUserId) {
+        console.log('User ID is missing in the request headers.');
+        return res.status(400).json({ error: 'User ID is required in the header' });
+    }
+
     try {
-        await redisClient.hset(`room:${roomId}`, 'type', type, 'participants', JSON.stringify(participants));
-        res.status(200).json({ message: 'Room created successfully' });
+        const result = await createRoom(roomName, type, participants, createUserId);
+        res.status(201).json(result);
     } catch (error) {
-        res.status(500).json({ message: 'Failed to create room' });
+        console.error('Failed to create room:', error);
+        res.status(500).json({ error: 'Failed to create room' });
     }
 };
 
-// 채팅방 삭제
-const deleteRoom = async (req, res) => {
+const deleteRoomController = async (req, res) => {
     const { roomId } = req.params;
     try {
         await redisClient.del(`room:${roomId}`);
         res.status(200).json({ message: 'Room deleted successfully' });
     } catch (error) {
+        console.error('Failed to delete room:', error);
         res.status(500).json({ message: 'Failed to delete room' });
     }
 };
 
-// 채팅방 목록 반환
-const getChatListController = async (req, res) => {
+const getChatRoomListController = async (req, res) => {
     const { userId } = req.params;
     try {
         const chatList = await getChatList(userId);
@@ -36,29 +41,15 @@ const getChatListController = async (req, res) => {
     }
 };
 
-// 메시지 전송 (Socket.IO로 메시지 처리)
-const sendMessage = async (roomId, userId, message) => {
-    const timestamp = Date.now();
-    const messageData = JSON.stringify({ userId, message, timestamp });
-
-    // Redis에 메시지 저장
-    await redisClient.lpush(`room:${roomId}:messages`, messageData);
-};
-
-// 채팅 메시지 처리
 const sendMessageController = async (req, res) => {
     const { roomId, userId, message } = req.body;
     try {
-        await saveMessage(roomId, userId, message);
-        res.status(200).json({ message: 'Message sent' });
+        await saveMessage(roomId, userId, message); 
+        res.status(200).json({ message: 'Message sent successfully' });
     } catch (error) {
         console.error('Failed to send message:', error);
         res.status(500).json({ message: 'Failed to send message' });
     }
 };
 
-module.exports = { getChatListController, sendMessageController };
-module.exports = { createRoom, deleteRoom, sendMessage };
-
-
-
+module.exports = { getChatRoomListController, createChatRoomController, deleteRoomController, sendMessageController };

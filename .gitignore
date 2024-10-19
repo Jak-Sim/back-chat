@@ -3,3 +3,4 @@ dist
 coverage
 .env
 test.html
+test-chatlist.html

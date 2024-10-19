@@ -1,15 +1,15 @@
 const express = require('express');
-const multer = require('multer');
-const { uploadImage, sendMessage, getChatListController, sendMessageController } = require('../controllers/chatController');
+const { uploadImage, createChatRoomController, getChatRoomListController, sendMessageController } = require('../controllers/chatController');
+// const multer = require('multer');
 
 const router = express.Router();
 
-const upload = multer({ dest: 'uploads/' });
+// const upload = multer({ dest: 'uploads/' });
+// router.post('/upload', upload.single('image'), uploadImage);
 
-router.post('/upload', upload.single('image'), uploadImage);
-router.post('/send', sendMessage);
-
-router.get('/list/:userId', getChatListController);
 router.post('/send', sendMessageController);
+router.get('/list/:userId', getChatRoomListController);
+router.post('/create', createChatRoomController);
+
 
 module.exports = router;
