@@ -1,5 +1,5 @@
 const redisClient = require('../redis/redisClient');
-const { getChatMessages, getChatList, createRoom } = require('../services/chatService');
+const { getChatMessages, getChatList, createRoom, createChallengeRoom } = require('../services/chatService');
 
 const createChatRoomController = async (req, res) => {
     const { roomName, type, participants } = req.body;
@@ -7,7 +7,7 @@ const createChatRoomController = async (req, res) => {
 
     if (!createUserId) {
         console.log('User ID is missing in the request headers.');
-        return res.status(400).json({ error: 'User ID is required in the header' });
+        return res.status(400).json({ message: 'User ID is required in the header' });
     }
 
     try {
@@ -15,7 +15,7 @@ const createChatRoomController = async (req, res) => {
         res.status(201).json(result);
     } catch (error) {
         console.error('Failed to create room:', error);
-        res.status(500).json({ error: 'Failed to create room' });
+        res.status(500).json({ message: 'Failed to create room' });
     }
 };
 
@@ -52,9 +52,27 @@ const getChatMessagesController = async (req, res) => {
     }
 };
 
+const createChallengeRoomController = async (req, res) => {
+    const { challengeId } = req.params;
+    const { roomName, type, owner } = req.body;
+
+    if (!roomName || !type || !owner || !challengeId) {
+        return res.status(400).json({ message: 'Invalid request: missing required fields.' });
+    }
+
+    try {
+        const result = await createChallengeRoom(challengeId, roomName, type, owner);
+        res.status(201).json(result);
+    } catch (error) {
+        console.error('Error creating challenge chat room:', error);
+        res.status(500).json({ message: 'Failed to create challenge chat room' });
+    }
+};
+
 module.exports = { 
     createChatRoomController, 
     deleteRoomController, 
     getChatRoomListController,
     getChatMessagesController,
+    createChallengeRoomController,
 };

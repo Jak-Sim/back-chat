@@ -96,10 +96,32 @@ const getChatMessages = async (roomId) => {
     }
 };
 
+const createChallengeRoom = async (challengeId, roomName, type, owner) => {
+    const connection = await db.getConnection();
+    
+    try {
+        const [result] = await connection.query(
+            'INSERT INTO chat_rooms (room_type, room_name, create_user_id, challenge_id) VALUES (?, ?, ?, ?)',
+            [type, roomName, owner, challengeId]
+        );
+        const roomId = result.insertId;
+
+        await connection.query('INSERT INTO chat_participants (room_id, user_id) VALUES (?, ?)', [roomId, owner]);
+        await redisClient.lpush(`user:${owner}:rooms`, roomId.toString());
+
+        return { message: 'Challenge chat room created successfully', roomId };
+    } catch (error) {
+        console.error('Error creating challenge chat room:', error);
+        throw new Error('Failed to create challenge chat room');
+    } finally {
+        connection.release();
+    }
+};
+
 module.exports = { 
     createRoom,
     saveMessage, 
     getChatList,
     getChatMessages,
-    
+    createChallengeRoom,
 };
