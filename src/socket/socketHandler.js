@@ -4,6 +4,21 @@ const { saveMessageToDB } = require('../services/chatService');
 
 const MAX_REDIS_MESSAGES = 100;
 
+// yyyy-mm-dd hh:mm:ss
+const formatDateTime = (timestamp) => {
+    const date = new Date(timestamp);
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;  
+};
+
 const socketHandler = (io) => {
     const subscribedRooms = new Set();
 
@@ -45,11 +60,12 @@ const socketHandler = (io) => {
             const { roomId, userId, message } = msg;
             
             const timestamp = Date.now();
+            const formattedDate = formatDateTime(timestamp);
             const messageData = { 
                 roomId, // int
                 userId, // string
                 message, // string
-                timestamp: new Date(timestamp).toLocaleString() // string
+                timestamp: formattedDate // string
             };
 
             try {
