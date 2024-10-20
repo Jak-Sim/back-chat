@@ -1,6 +1,8 @@
 const { publish, subscribe } = require('../redis/redisPubSub');
 const redisClient = require('../redis/redisClient');
 const { saveMessageToDB } = require('../services/chatService');
+const path = require('path');
+const fs = require('fs');
 
 const MAX_REDIS_MESSAGES = 100;
 
@@ -34,7 +36,13 @@ const socketHandler = (io) => {
                 }
                 try {
                     const parsedMessage = JSON.parse(message);
-                    io.to(roomId).emit('chat message', parsedMessage);
+                    
+                    if (parsedMessage.type === 'image') {
+                        io.to(roomId).emit('chat image', parsedMessage);
+                    } else {
+                        io.to(roomId).emit('chat message', parsedMessage);
+                    }
+                    
                     console.log(`Message received and emitted to room ${roomId}:`, parsedMessage);
                 } catch (error) {
                     console.error(`Error parsing message for room ${roomId}:`, error);
@@ -65,7 +73,8 @@ const socketHandler = (io) => {
                 roomId, // int
                 userId, // string
                 message, // string
-                timestamp: formattedDate // string
+                timestamp: formattedDate, // string
+                type: 'text' // string, 'text' or 'image'
             };
 
             try {
@@ -80,6 +89,34 @@ const socketHandler = (io) => {
 
             } catch (error) {
                 console.error('Error saving or publishing message:', error);
+            }
+        });
+
+        socket.on('chat image', async (data) => {
+            const { roomId, userId, imageUrl } = data;
+            
+            const timestamp = Date.now();
+            const formattedDate = formatDateTime(timestamp);
+            const messageData = {
+                roomId,
+                userId,
+                imageUrl,
+                timestamp: formattedDate,
+                type: 'image'
+            };
+
+            try {
+                console.log(`Saving image message to Redis: roomId=${roomId}, message=${JSON.stringify(messageData)}`);
+
+                await redisClient.lpush(`room:${roomId}:messages`, JSON.stringify(messageData));
+                await redisClient.ltrim(`room:${roomId}:messages`, 0, MAX_REDIS_MESSAGES - 1);
+
+                await publish(`room:${roomId}`, JSON.stringify(messageData));
+
+                console.log(`Image message published to room ${roomId}:`, messageData);
+
+            } catch (error) {
+                console.error('Error saving or publishing image message:', error);
             }
         });
 
