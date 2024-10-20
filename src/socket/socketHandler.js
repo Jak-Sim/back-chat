@@ -43,7 +43,14 @@ const socketHandler = (io) => {
 
         socket.on('chat message', async (msg) => {
             const { roomId, userId, message } = msg;
-            const messageData = { roomId, userId, message, timestamp: Date.now() };
+            
+            const timestamp = Date.now();
+            const messageData = { 
+                roomId, // int
+                userId, // string
+                message, // string
+                timestamp: new Date(timestamp).toLocaleString() // string
+            };
 
             try {
                 console.log(`Saving message to Redis: roomId=${roomId}, message=${JSON.stringify(messageData)}`);
