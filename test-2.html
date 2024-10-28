@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Chat - User 2</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        #chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #chat-room-filter {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        #chat-rooms, #chat {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #room-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        #room-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9f9f9;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #messages {
+            list-style: none;
+            padding: 0;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .message {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+        }
+
+        .message.own {
+            background: #e3f2fd;
+            margin-left: 20%;
+        }
+
+        .message.other {
+            background: #f5f5f5;
+            margin-right: 20%;
+        }
+
+        .create-room-form {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .create-room-form.show {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        #form {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0b5ed7;
+        }
+
+        #alert-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 1000;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .alert.success {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .user-indicator {
+            background: #0d6efd;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+    </style>
+    <script defer src="test.js"></script>
+</head>
+<body>
+    <div id="chat-container">
+        <div class="user-indicator">User 2</div>
+        <h1>Socket.IO Chat</h1>
+        <div id="user-id" style="display:none;">user2</div>
+
+        <div id="chat-room-filter">
+            <input type="radio" id="group" name="roomType" value="group" checked>
+            <label for="group">Group</label>
+            <input type="radio" id="challenge" name="roomType" value="challenge">
+            <label for="challenge">Challenge</label>
+        </div>
+
+        <div id="chat-rooms">
+            <h2>Chat Rooms</h2>
+            <button id="create-room-btn">Create New Chat Room</button>
+            
+            <div id="create-room-form" class="create-room-form">
+                <h3>Create New Room</h3>
+                <form id="room-form">
+                    <div class="form-group">
+                        <label for="room-name">Room Name</label>
+                        <input type="text" id="room-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="participants">Participants (comma separated userIds)</label>
+                        <input type="text" id="participants" placeholder="user1,user2,user3">
+                    </div>
+                    <button type="submit">Create Room</button>
+                    <button type="button" id="cancel-create">Cancel</button>
+                </form>
+            </div>
+
+            <ul id="room-list"></ul>
+        </div>
+
+        <div id="chat">
+            <h2>Messages</h2>
+            <ul id="messages"></ul>
+            <form id="form">
+                <input id="input" autocomplete="off" placeholder="Type a message..."/>
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="alert-message"></div>
+</body>
+</html>

@@ -3,7 +3,11 @@ node_modules/
 dist
 coverage
 .env
+<<<<<<< HEAD
 test.html
 test-chatlist.html
 test-2.html
+=======
+uploads/
+>>>>>>> 683cff8 (feature: Changed to use Redis Stream for real-time chat service, fixed minor bugs)
 .idea/

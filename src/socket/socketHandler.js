@@ -1,122 +1,114 @@
-const { publish, subscribe } = require('../redis/redisPubSub');
-const redisClient = require('../redis/redisClient');
-const { saveMessageToDB } = require('../services/chatService');
-const path = require('path');
-const fs = require('fs');
-
-const MAX_REDIS_MESSAGES = 100;
+const { addToStream, readFromStream, createConsumerGroup, readRangeFromStream } = require('../redis/redisStream');
+const MAX_STREAM_MESSAGES = 100;
 
 // yyyy-mm-dd hh:mm:ss
 const formatDateTime = (timestamp) => {
     const date = new Date(timestamp);
-    
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
-
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;  
 };
 
 const socketHandler = (io) => {
     const subscribedRooms = new Set();
 
-    const subscribeToRoom = (roomId) => {
+    const subscribeToRoom = async (roomId) => {
+        const streamKey = `room:${roomId}:stream`;
+        const groupName = `group:${roomId}`;
+
         if (!subscribedRooms.has(roomId)) {
             subscribedRooms.add(roomId);
-            const channel = `room:${roomId}`;
             
-            subscribe(channel, (err, message) => {
-                if (err) {
-                    console.error(`Error subscribing to room ${roomId}:`, err);
-                    return;
-                }
-                try {
-                    const parsedMessage = JSON.parse(message);
-                    
-                    if (parsedMessage.type === 'image') {
-                        io.to(roomId).emit('chat image', parsedMessage);
-                    } else {
-                        io.to(roomId).emit('chat message', parsedMessage);
+            try {
+                await createConsumerGroup(streamKey, groupName);
+                const consumer = `consumer-${Date.now()}`;
+                
+                setInterval(async () => {
+                    try {
+                        const messages = await readFromStream(streamKey, groupName, consumer);
+                        if (messages && messages.length > 0) {
+                            messages.forEach(message => {
+                                console.log(`New message received from stream for room ${roomId}`);
+                            });
+                        }
+                    } catch (error) {
+                        console.error(`Error reading messages from stream for room ${roomId}:`, error);
                     }
-                    
-                    console.log(`Message received and emitted to room ${roomId}:`, parsedMessage);
-                } catch (error) {
-                    console.error(`Error parsing message for room ${roomId}:`, error);
-                }
-            });
-            
-            console.log(`Subscribed to room: ${roomId}`);
-        } else {
-            console.log(`Already subscribed to room: ${roomId}`);
+                }, 1000);
+            } catch (error) {
+                console.error(`Error subscribing to room ${roomId}:`, error);
+                subscribedRooms.delete(roomId);
+            }
         }
     };
 
     io.on('connection', (socket) => {
         console.log(`User connected: ${socket.id}`);
 
-        socket.on('joinRoom', (roomId) => {
+        socket.on('joinRoom', async (roomId) => {
             socket.join(roomId);
             console.log(`User ${socket.id} joined room: ${roomId}`);
-            subscribeToRoom(roomId);
+            await subscribeToRoom(roomId);
+
+            try {
+                const messages = await readRangeFromStream(`room:${roomId}:stream`);
+                if (messages && messages.length > 0) {
+                    messages.forEach(message => {
+                        socket.emit('chat message', message);
+                    });
+                }
+            } catch (error) {
+                console.error(`Error fetching past messages for room ${roomId}:`, error);
+            }
         });
 
-        socket.on('chat message', async (msg) => {
-            const { roomId, userId, message } = msg;
-            
+        socket.on('chat message', async (messageData) => {
+            const { roomId, userId, message } = messageData;
             const timestamp = Date.now();
-            const formattedDate = formatDateTime(timestamp);
-            const messageData = { 
-                roomId, // int
-                userId, // string
-                message, // string
-                timestamp: formattedDate, // string
-                type: 'text' // string, 'text' or 'image'
+            
+            const streamData = {
+                roomId: parseInt(roomId),
+                userId,
+                message,
+                timestamp: formatDateTime(timestamp),
+                type: 'text'
             };
 
             try {
-                console.log(`Saving message to Redis: roomId=${roomId}, message=${JSON.stringify(messageData)}`);
-
-                await redisClient.lpush(`room:${roomId}:messages`, JSON.stringify(messageData));
-                await redisClient.ltrim(`room:${roomId}:messages`, 0, MAX_REDIS_MESSAGES - 1);
-
-                await publish(`room:${roomId}`, JSON.stringify(messageData));
-
-                console.log(`Message published to room ${roomId}:`, messageData);
-
+                const result = await addToStream(`room:${roomId}:stream`, streamData);
+                socket.to(roomId).emit('chat message', result);
+                console.log(`Message saved to stream for room ${roomId}:`, result);
             } catch (error) {
-                console.error('Error saving or publishing message:', error);
+                console.error('Error handling chat message:', error);
             }
+        });
+
+        socket.on('disconnect', () => {
+            console.log(`User disconnected: ${socket.id}`);
         });
 
         socket.on('chat image', async (data) => {
             const { roomId, userId, imageUrl } = data;
-            
             const timestamp = Date.now();
-            const formattedDate = formatDateTime(timestamp);
-            const messageData = {
-                roomId,
+            
+            const streamData = {
+                roomId: parseInt(roomId),
                 userId,
                 imageUrl,
-                timestamp: formattedDate,
+                timestamp: formatDateTime(timestamp),
                 type: 'image'
             };
 
             try {
-                console.log(`Saving image message to Redis: roomId=${roomId}, message=${JSON.stringify(messageData)}`);
-
-                await redisClient.lpush(`room:${roomId}:messages`, JSON.stringify(messageData));
-                await redisClient.ltrim(`room:${roomId}:messages`, 0, MAX_REDIS_MESSAGES - 1);
-
-                await publish(`room:${roomId}`, JSON.stringify(messageData));
-
-                console.log(`Image message published to room ${roomId}:`, messageData);
-
+                const result = await addToStream(`room:${roomId}:stream`, streamData);
+                socket.to(roomId).emit('chat image', result);
+                console.log(`Image message saved to stream for room ${roomId}:`, result);
             } catch (error) {
-                console.error('Error saving or publishing image message:', error);
+                console.error('Error handling image message:', error);
             }
         });
 

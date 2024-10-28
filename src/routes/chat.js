@@ -1,15 +1,17 @@
 const express = require('express');
 const {
     getChatMessagesController, 
-    createChatRoomController, 
-    getChatRoomListController,
+    createChatRoomController,
+    getChallengeRoomListController,
+    getGroupRoomListController,
     createChallengeRoomController
  } = require('../controllers/chatController');
 
 const router = express.Router();
 
 
-router.get('/list/:userId', getChatRoomListController);
+router.get('/list/group', getGroupRoomListController);
+router.get('/list/challenge', getChallengeRoomListController);
 router.get('/message/:roomId', getChatMessagesController);
 
 router.post('/create', createChatRoomController);

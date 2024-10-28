@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://210.183.4.67:8081', 'http://210.183.4.67:8080'],
     allowedHeaders: ['Content-Type', 'Authorization', 'user-id'],
     credentials: true 
 }));
@@ -27,7 +27,7 @@ app.use('/chat/photo', photoRoutes);
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:3000', 'http://127.0.0.1:5500'],
+        origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://210.183.4.67:8081', 'http://210.183.4.67:8080'],
         methods: ['GET', 'POST'],
         credentials: true
     }
