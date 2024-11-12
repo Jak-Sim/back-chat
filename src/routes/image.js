@@ -1,8 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
-const path = require('path');
-const { uploadPhotoController } = require('../controllers/photoController');
+const { uploadPhotoController } = require('../controllers/imageController');
 const router = express.Router();
 
 const uploadDir = 'uploads/';

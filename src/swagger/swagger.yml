@@ -1,0 +1,180 @@
+openapi: 3.0.0
+info:
+  title: Jak-Sim:Chat API
+  version: 1.0.0
+  description: API Documentation for the Chat API
+  contact:
+    name: Yuju Lee
+    email: periq23@gmail.com
+
+servers:
+  - url: http://210.183.4.67:8080
+    description: DEV environment
+
+tags:
+  - name: Chat Rooms
+  - name: Chat Messages
+
+paths:
+  /list/group:
+    get:
+      tags:
+        - Chat Rooms
+      summary: Get a list of group chat rooms
+      description: Returns a list of all group chat rooms.
+      responses:
+        200:
+          description: A list of group chat rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    roomId:
+                      type: integer
+                    name:
+                      type: string
+        500:
+          description: Failed to get chat list
+
+  /list/challenge:
+    get:
+      tags:
+        - Chat Rooms
+      summary: Get a list of challenge chat rooms
+      description: Returns a list of all challenge chat rooms.
+      responses:
+        200:
+          description: A list of challenge chat rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    roomId:
+                      type: integer
+                    name:
+                      type: string
+        500:
+          description: Failed to get chat list
+
+  /message/{roomId}:
+    get:
+      tags:
+        - Chat Messages
+      summary: Get chat messages for a specific room
+      description: Returns chat messages for the specified room.
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the room
+      responses:
+        200:
+          description: Messages in the specified room
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    messageId:
+                      type: integer
+                    userId:
+                      type: string
+                    message:
+                      type: string
+                    timestamp:
+                      type: string
+                      format: date-time
+        500:
+          description: Failed to fetch chat messages
+
+  /create:
+    post:
+      tags:
+        - Chat Rooms
+      summary: Create a new chat room
+      description: Creates a new chat room with the given name, type, and participants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomName:
+                  type: string
+                type:
+                  type: string
+                participants:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        201:
+          description: Room created successfully
+        400:
+          description: Missing User ID in headers
+        500:
+          description: Failed to create room
+
+  /create/challenge/{challengeId}:
+    post:
+      tags:
+        - Chat Rooms
+      summary: Create a new challenge chat room
+      description: Creates a new chat room associated with a specific challenge.
+      parameters:
+        - name: challengeId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomName:
+                  type: string
+                type:
+                  type: string
+                owner:
+                  type: string
+      responses:
+        201:
+          description: Challenge room created successfully
+        400:
+          description: Invalid request data
+        500:
+          description: Failed to create challenge chat room
+
+  /rooms/{roomId}:
+    delete:
+      tags:
+        - Chat Rooms
+      summary: Delete a chat room
+      description: Deletes a chat room with the specified room ID.
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the room to delete
+      responses:
+        200:
+          description: Room deleted successfully
+        500:
+          description: Failed to delete room

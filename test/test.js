@@ -17,7 +17,6 @@ function setAlertMessage(message, isError = false) {
     alertMessageDiv.textContent = message;
     alertMessageDiv.className = isError ? 'alert error' : 'alert';
     
-    // 3초 후 메시지 제거
     setTimeout(() => {
         alertMessageDiv.textContent = '';
         alertMessageDiv.className = 'alert';
@@ -25,7 +24,7 @@ function setAlertMessage(message, isError = false) {
 }
 
 // fetch 요청에 타임아웃 추가 함수
-function fetchWithTimeout(url, options = {}, timeout = 5000) {
+function fetchWithTimeout(url, options = {}, timeout = 10000) { // 타임아웃을 10초로 증가
     return Promise.race([
         fetch(url, options),
         new Promise((_, reject) =>
@@ -62,7 +61,6 @@ roomForm.addEventListener('submit', async (e) => {
     const roomType = document.querySelector('input[name="roomType"]:checked').value;
     const participants = participantsInput.split(',').map(p => p.trim()).filter(p => p !== '');
 
-    // 현재 사용자가 참가자 목록에 없으면 추가
     if (!participants.includes(userId)) {
         participants.push(userId);
     }
@@ -88,15 +86,12 @@ roomForm.addEventListener('submit', async (e) => {
         const result = await response.json();
         setAlertMessage('Room created successfully!', false);
         
-        // 폼 초기화 및 숨기기
         createRoomForm.classList.remove('show');
         createRoomBtn.style.display = 'block';
         roomForm.reset();
         
-        // 채팅방 목록 새로고침
         await fetchChatRooms();
 
-        // 새로 생성된 방으로 이동
         loadMessages(result.roomId);
     } catch (error) {
         console.error('Error creating room:', error);
@@ -107,7 +102,7 @@ roomForm.addEventListener('submit', async (e) => {
 // 채팅방 리스트 아이템 생성 함수
 function createRoomListItem(room) {
     const li = document.createElement('li');
-    li.dataset.roomId = room.roomId; // 방 ID 데이터 속성 추가
+    li.dataset.roomId = room.roomId;
     const roomInfo = document.createElement('div');
     roomInfo.className = 'room-info';
 
@@ -141,8 +136,8 @@ function fetchChatRooms() {
 
     return fetchWithTimeout(`http://210.183.4.67:8080/chat/list/${roomType}`, {
         headers: {
-            'user-id': userId,
-            'Content-Type': 'application/json'
+            'user-id': userId
+            // 'Content-Type' 헤더 제거
         }
     })
     .then(response => {
@@ -179,7 +174,7 @@ function displayMessage(msg, isOwn = false) {
     const messageList = document.getElementById('messages');
     const li = document.createElement('li');
     li.className = isOwn ? 'message own' : 'message';
-    li.dataset.messageId = msg.id; // 메시지 ID 저장
+    li.dataset.messageId = msg.id;
 
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content';
@@ -215,6 +210,7 @@ async function loadMessages(roomId) {
         const response = await fetchWithTimeout(`http://210.183.4.67:8080/chat/message/${roomId}`, {
             headers: {
                 'user-id': userId
+                // 'Content-Type' 헤더 제거
             }
         });
 
@@ -224,17 +220,14 @@ async function loadMessages(roomId) {
         const messageList = document.getElementById('messages');
         messageList.innerHTML = '';
         
-        // 메시지가 배열인지 확인
         if (Array.isArray(messages)) {
             messages.forEach(msg => {
                 displayMessage(msg, msg.userId === userId);
             });
         }
 
-        // 방 참여
         socket.emit('joinRoom', roomId);
-        
-        // 채팅방 선택 표시 업데이트
+
         document.querySelectorAll('#room-list li').forEach(li => {
             li.classList.remove('active');
             if (li.dataset.roomId === roomId) {
@@ -260,17 +253,15 @@ document.getElementById('form').addEventListener('submit', function(e) {
             roomId: selectedRoom,
             userId,
             message,
-            timestamp: new Date().toISOString(), // ISO 문자열 형식으로 변경
+            timestamp: new Date().toISOString(),
             type: 'text'
         };
 
-        // 소켓으로 메시지 전송
         socket.emit('chat message', messageData);
         
-        // 본인 화면에 메시지 표시
         displayMessage({
             ...messageData,
-            id: Date.now().toString() // 임시 ID 부여
+            id: Date.now().toString()
         }, true);
         
         messageInput.value = '';
@@ -281,10 +272,9 @@ document.getElementById('form').addEventListener('submit', function(e) {
 
 // 소켓 이벤트 리스너
 socket.on('chat message', function(msg) {
-    // 메시지가 현재 방의 것이고 다른 사용자가 보낸 것인 경우에만 표시
     if (msg.roomId === selectedRoom && msg.userId !== userId) {
         if (!msg.id) {
-            msg.id = Date.now().toString(); // ID가 없는 경우 임시 ID 부여
+            msg.id = Date.now().toString();
         }
         displayMessage(msg);
     }

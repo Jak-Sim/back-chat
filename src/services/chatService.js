@@ -1,6 +1,6 @@
 const redisClient = require('../redis/redisClient');
 const redisStream = require('../redis/redisStream');
-const db = require('../config/dbConfig');
+const db = require('../db/dbConfig');
 const { publish } = require('../redis/redisPubSub');
 
 // redis keys 생성
@@ -85,7 +85,6 @@ const saveMessage = async (roomId, userId, message) => {
 };
 
 const getChatList = async (userId, roomType) => {
-    console.log(`[ChatService] Fetching chat list for user ${userId}, type ${roomType}`);
     const roomList = [];
     const connection = await db.getConnection();
     
@@ -111,6 +110,7 @@ const getChatList = async (userId, roomType) => {
                     lastMessage: roomInfo?.lastMessage || null,
                     lastTimestamp: roomInfo?.lastTimestamp ? parseInt(roomInfo.lastTimestamp) : null
                 });
+                console.log(`[ChatService] Fetch chat list for user ${userId}, type ${roomType}`);
             } catch (redisError) {
                 console.error(`[ChatService] Error fetching Redis info for room ${room.room_id}:`, redisError);
                 roomList.push({

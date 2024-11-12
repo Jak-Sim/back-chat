@@ -1,5 +1,5 @@
 const redisClient = require('../redis/redisClient');
-const { getChatMessages, getChatList, createRoom, createChallengeRoom, savePhoto, saveFile } = require('../services/chatService');
+const { getChatMessages, getChatList, createRoom, createChallengeRoom } = require('../services/chatService');
 
 const createChatRoomController = async (req, res) => {
     const { roomName, type, participants } = req.body;

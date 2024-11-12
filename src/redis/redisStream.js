@@ -1,12 +1,6 @@
 const redisClient = require('./redisClient');
 
-const formatStreamMessage = (userId, message, type = 'text') => ({
-    userId,
-    message,
-    timestamp: Date.now(),
-    type
-});
-
+// Creates a consumer group for a given stream
 const createConsumerGroup = async (streamKey, groupName) => {
     try {
         await redisClient.xGroupCreate(streamKey, groupName);
@@ -17,29 +11,36 @@ const createConsumerGroup = async (streamKey, groupName) => {
     }
 };
 
+// Adds a message to the stream
 const addToStream = async (streamKey, messageData) => {
     try {
         if (!messageData) {
             throw new Error('Message data is required');
         }
 
-        const result = await redisClient.xAdd(streamKey, messageData);
-        console.log(`Added message to stream ${streamKey}:`, result);
-        return result;
+        const id = await redisClient.xAdd(streamKey, messageData);
+        console.log(`Added message to stream ${streamKey}:`, id);
+        return { id, ...messageData };
     } catch (err) {
         console.error(`Error adding to stream ${streamKey}:`, err);
         throw err;
     }
 };
 
+// Reads messages from the stream using a consumer group
 const readFromStream = async (streamKey, groupName, consumerName) => {
     try {
+        if (!streamKey || !groupName || !consumerName) {
+            console.error('Missing required parameters for readFromStream');
+            return [];
+        }
+
         const messages = await redisClient.xReadGroup(groupName, consumerName, streamKey);
-        
-        if (messages && messages.length > 0) {
+
+        if (Array.isArray(messages) && messages.length > 0) {
             console.log(`Read ${messages.length} messages from ${streamKey}`);
         }
-        
+
         return messages;
     } catch (err) {
         console.error(`Error reading from stream ${streamKey}:`, err);
@@ -47,6 +48,7 @@ const readFromStream = async (streamKey, groupName, consumerName) => {
     }
 };
 
+// Reads a range of messages from the stream
 const readRangeFromStream = async (streamKey, start = '-', end = '+') => {
     try {
         const messages = await redisClient.xRange(streamKey, start, end);
@@ -57,6 +59,7 @@ const readRangeFromStream = async (streamKey, start = '-', end = '+') => {
     }
 };
 
+// Deletes a message from the stream
 const deleteFromStream = async (streamKey, messageId) => {
     try {
         return await redisClient.xDel(streamKey, messageId);
@@ -66,6 +69,7 @@ const deleteFromStream = async (streamKey, messageId) => {
     }
 };
 
+// Cleans up the stream by clearing all messages
 const cleanupStream = async (streamKey) => {
     try {
         await redisClient.clearStream(streamKey);

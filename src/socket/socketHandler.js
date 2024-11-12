@@ -1,7 +1,6 @@
 const { addToStream, readFromStream, createConsumerGroup, readRangeFromStream } = require('../redis/redisStream');
-const MAX_STREAM_MESSAGES = 100;
+const MAX_STREAM_MESSAGES = 100; // 최대 메시지 수
 
-// yyyy-mm-dd hh:mm:ss
 const formatDateTime = (timestamp) => {
     const date = new Date(timestamp);
     const year = date.getFullYear();
@@ -14,111 +13,163 @@ const formatDateTime = (timestamp) => {
 };
 
 const socketHandler = (io) => {
-    const subscribedRooms = new Set();
+    // Map으로 변경하여 room별 상태 관리
+    const subscribedRooms = new Map();
 
     const subscribeToRoom = async (roomId) => {
         const streamKey = `room:${roomId}:stream`;
         const groupName = `group:${roomId}`;
 
         if (!subscribedRooms.has(roomId)) {
-            subscribedRooms.add(roomId);
-            
             try {
+                // Consumer Group 생성
                 await createConsumerGroup(streamKey, groupName);
                 const consumer = `consumer-${Date.now()}`;
-                
-                setInterval(async () => {
+
+                // 상태 저장
+                subscribedRooms.set(roomId, {
+                    consumer,
+                    streamKey,
+                    groupName,
+                    lastRead: Date.now()
+                });
+
+                // 메시지 모니터링 인터벌 설정
+                const interval = setInterval(async () => {
                     try {
                         const messages = await readFromStream(streamKey, groupName, consumer);
                         if (messages && messages.length > 0) {
                             messages.forEach(message => {
-                                console.log(`New message received from stream for room ${roomId}`);
+                                if (message && message.data) {
+                                    const parsedMessage = typeof message.data === 'string' ? 
+                                        JSON.parse(message.data) : message.data;
+                                    io.to(roomId).emit('chat message', parsedMessage);
+                                }
                             });
                         }
                     } catch (error) {
-                        console.error(`Error reading messages from stream for room ${roomId}:`, error);
+                        console.error(`Error reading messages for room ${roomId}:`, error);
                     }
-                }, 1000);
+                }, 100); // 100ms로 설정하여 반응 개선
+
+                // 인터벌 저장
+                subscribedRooms.get(roomId).interval = interval;
             } catch (error) {
                 console.error(`Error subscribing to room ${roomId}:`, error);
                 subscribedRooms.delete(roomId);
+                throw error;
             }
         }
+    };
+
+    const unsubscribeFromRoom = (roomId) => {
+        const subscription = subscribedRooms.get(roomId);
+        if (subscription?.interval) {
+            clearInterval(subscription.interval);
+        }
+        subscribedRooms.delete(roomId);
     };
 
     io.on('connection', (socket) => {
         console.log(`User connected: ${socket.id}`);
 
         socket.on('joinRoom', async (roomId) => {
-            socket.join(roomId);
-            console.log(`User ${socket.id} joined room: ${roomId}`);
-            await subscribeToRoom(roomId);
-
             try {
+                socket.join(roomId);
+                console.log(`User ${socket.id} joined room: ${roomId}`);
+                
+                // 구독
+                await subscribeToRoom(roomId);
+
+                // 이전 메시지 로드
                 const messages = await readRangeFromStream(`room:${roomId}:stream`);
                 if (messages && messages.length > 0) {
                     messages.forEach(message => {
-                        socket.emit('chat message', message);
+                        if (message && message.data) {
+                            const parsedMessage = typeof message.data === 'string' ?
+                                JSON.parse(message.data) : message.data;
+                            socket.emit('chat message', parsedMessage);
+                        }
                     });
                 }
             } catch (error) {
-                console.error(`Error fetching past messages for room ${roomId}:`, error);
+                console.error(`Error handling room join for room ${roomId}:`, error);
+                socket.emit('error', { message: 'Failed to join room' });
             }
         });
 
         socket.on('chat message', async (messageData) => {
             const { roomId, userId, message } = messageData;
-            const timestamp = Date.now();
+            const streamKey = `room:${roomId}:stream`;
             
             const streamData = {
                 roomId: parseInt(roomId),
                 userId,
                 message,
-                timestamp: formatDateTime(timestamp),
+                timestamp: formatDateTime(Date.now()),
                 type: 'text'
             };
 
             try {
-                const result = await addToStream(`room:${roomId}:stream`, streamData);
-                socket.to(roomId).emit('chat message', result);
-                console.log(`Message saved to stream for room ${roomId}:`, result);
+                // Redis Stream에 메시지 추가
+                const result = await addToStream(streamKey, streamData);
+                
+                // 본인 제외한 방의 다른 참여자에게 메시지 전송
+                socket.to(roomId).emit('chat message', {
+                    ...streamData,
+                    id: result.id
+                });
             } catch (error) {
                 console.error('Error handling chat message:', error);
+                socket.emit('error', { message: 'Failed to send message' });
             }
-        });
-
-        socket.on('disconnect', () => {
-            console.log(`User disconnected: ${socket.id}`);
         });
 
         socket.on('chat image', async (data) => {
             const { roomId, userId, imageUrl } = data;
-            const timestamp = Date.now();
+            const streamKey = `room:${roomId}:stream`;
             
             const streamData = {
                 roomId: parseInt(roomId),
                 userId,
                 imageUrl,
-                timestamp: formatDateTime(timestamp),
+                timestamp: formatDateTime(Date.now()),
                 type: 'image'
             };
 
             try {
-                const result = await addToStream(`room:${roomId}:stream`, streamData);
-                socket.to(roomId).emit('chat image', result);
-                console.log(`Image message saved to stream for room ${roomId}:`, result);
+                const result = await addToStream(streamKey, streamData);
+                socket.to(roomId).emit('chat image', {
+                    ...streamData,
+                    id: result.id
+                });
             } catch (error) {
                 console.error('Error handling image message:', error);
+                socket.emit('error', { message: 'Failed to send image' });
             }
         });
 
         socket.on('leaveRoom', (roomId) => {
             socket.leave(roomId);
+            // 방에 남은 참여자가 없으면 구독 해제
+            const room = io.sockets.adapter.rooms.get(roomId);
+            if (!room || room.size === 0) {
+                unsubscribeFromRoom(roomId);
+            }
             console.log(`User ${socket.id} left room: ${roomId}`);
         });
 
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${socket.id}`);
+            // 연결이 끊긴 참여자가 속한 방들의 구독 상태 확인
+            socket.rooms.forEach(roomId => {
+                if (roomId !== socket.id) {
+                    const room = io.sockets.adapter.rooms.get(roomId);
+                    if (!room || room.size === 0) {
+                        unsubscribeFromRoom(roomId);
+                    }
+                }
+            });
         });
     });
 };
