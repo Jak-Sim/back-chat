@@ -1,5 +1,3 @@
-// src/controllers/chatController.js
-
 const redisClient = require('../redis/redisClient');
 const {
   getChatMessages,

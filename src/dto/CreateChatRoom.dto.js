@@ -1,8 +1,3 @@
-/**
- * CreateChatRoom DTO
- * 채팅방 생성 요청 DTO
- */
-
 class CreateChatRoomDTO {
   /**
    * @param {string} roomName - 방 이름

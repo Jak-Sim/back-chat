@@ -1,8 +1,3 @@
-/**
- * ChatMessage DTO
- * 채팅 메시지에 사용되는 데이터 전송 객체입니다.
- */
-
 class ChatMessageDTO {
   /**
    * @param {string} messageId - 메시지 ID

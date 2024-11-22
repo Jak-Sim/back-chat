@@ -1,8 +1,3 @@
-/**
- * CreateChallengeRoom DTO
- * 챌린지 채팅방 생성 요청 DTO
- */
-
 class CreateChallengeRoomDTO {
   /**
    * @param {string} roomName - 방 이름

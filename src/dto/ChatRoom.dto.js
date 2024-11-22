@@ -1,8 +1,3 @@
-/**
- * ChatRoom DTO
- * 채팅방 DTO
- */
-
 class ChatRoomDTO {
     /**
      * @param {string} roomId - 방 ID

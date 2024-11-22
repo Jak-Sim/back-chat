@@ -15,6 +15,12 @@ const options = {
       },
     ],
     components: {
+      securitySchemes: {
+        basicAuth: {
+          type: 'http',
+          scheme: 'basic',
+        }
+      },
       schemas: {
         ChatRoom: {
           type: 'object',

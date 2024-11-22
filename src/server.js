@@ -13,6 +13,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const swaggerSpecs = require('./swagger/swagger');
+const basicAuth = require('express-basic-auth');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -24,6 +25,11 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'user-id'],
     credentials: true 
+}));
+
+app.use(basicAuth({
+  users: { [process.env.BASIC_AUTH_USER]: process.env.BASIC_AUTH_PASSWORD },
+  challenge: true
 }));
 
 app.use(ipFilterMiddleware);
