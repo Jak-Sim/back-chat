@@ -3,7 +3,6 @@ const multer = require('multer');
 const fs = require('fs');
 const { uploadNormalImageController, uploadChallengeImageController, updateChallengeImageStatus } = require('../controllers/imageController');
 const router = express.Router();
-const uploadToS3 = require('../services/imageService');
 
 const storage = multer.memoryStorage();
 
@@ -18,15 +17,13 @@ const fileFilter = (req, file, cb) => {
     cb(null, true);
 };
 
-const upload = multer({ 
+const upload = multer({
     storage,
     fileFilter,
     limits: { fileSize: 1024 * 1024 * 5 } // 5MB
 });
 
 router.post('/upload', (req, res) => {
-    // #swagger.tags = ['Image']
-    // #swagger.description = 'Upload a normal image.'
     upload.single('image')(req, res, (err) => {
         if (err) {
             return res.status(400).json({ message: 'File upload error.' });
@@ -36,8 +33,6 @@ router.post('/upload', (req, res) => {
 });
 
 router.post('/mission/upload', (req, res) => {
-    // #swagger.tags = ['Image']
-    // #swagger.description = 'Upload a challenge image.'
     upload.single('image')(req, res, (err) => {
         if (err) {
             return res.status(400).json({ message: 'File upload error.' });
@@ -47,8 +42,6 @@ router.post('/mission/upload', (req, res) => {
 });
 
 router.post('/mission/confirm', (req, res) => {
-    // #swagger.tags = ['Image']
-    // #swagger.description = 'Update the status of a challenge image.'
     updateChallengeImageStatus(req, res);
 });
 

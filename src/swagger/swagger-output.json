@@ -1,327 +1,597 @@
 {
-  "swagger": "2.0",
+  "openapi": "3.0.0",
   "info": {
     "title": "Jak-Sim:Chat API",
-    "description": "API documentation for the Chat application",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "API documentation for the Chat application"
   },
-  "host": "210.183.4.67:8080",
-  "basePath": "/",
-  "tags": [
+  "servers": [
     {
-      "name": "Chat Rooms",
-      "description": "Manage chat rooms"
-    },
-    {
-      "name": "Image",
-      "description": "Manage image uploads"
+      "url": "http://210.183.4.67:8080",
+      "description": "Development server"
     }
   ],
-  "schemes": [
-    "http"
-  ],
+  "components": {
+    "schemas": {
+      "ChatRoom": {
+        "type": "object",
+        "required": [
+          "roomId",
+          "roomName",
+          "roomType"
+        ],
+        "properties": {
+          "roomId": {
+            "type": "string"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "roomType": {
+            "type": "string",
+            "enum": [
+              "group",
+              "challenge"
+            ]
+          }
+        }
+      },
+      "CreateChatRoom": {
+        "type": "object",
+        "required": [
+          "roomName",
+          "type",
+          "participants"
+        ],
+        "properties": {
+          "roomName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "group",
+              "challenge"
+            ]
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "참여자 ID 목록"
+          }
+        }
+      },
+      "CreateChallengeRoom": {
+        "type": "object",
+        "required": [
+          "roomName",
+          "type",
+          "owner"
+        ],
+        "properties": {
+          "roomName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string",
+            "description": "room owner's ID"
+          }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "required": [
+          "messageId",
+          "roomId",
+          "senderId",
+          "content",
+          "type",
+          "timestamp"
+        ],
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string",
+            "description": "message sender ID"
+          },
+          "content": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image"
+            ],
+            "description": "'text' or 'image'"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeleteRoomResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "UploadImageResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "imageUrl"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "description": "optional data",
+            "additionalProperties": true
+          }
+        }
+      },
+      "UpdateImageStatusRequest": {
+        "type": "object",
+        "required": [
+          "imageId",
+          "status"
+        ],
+        "properties": {
+          "imageId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected"
+            ],
+            "description": "'accepted' or 'rejected'"
+          }
+        }
+      },
+      "UpdateImageStatusResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "success flag"
+          },
+          "data": {
+            "type": "object",
+            "description": "updated data",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
   "paths": {
-    "/list/group": {
-      "get": {
+    "/chat/create": {
+      "post": {
+        "summary": "채팅방을 생성합니다.",
         "tags": [
-          "Chat Rooms"
+          "Chat"
         ],
-        "description": "Fetch the list of group chat rooms.",
         "parameters": [
           {
-            "name": "user-id",
             "in": "header",
-            "type": "string"
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "사용자 ID"
           }
         ],
+        "requestBody": {
+          "description": "채팅방 생성 정보",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatRoom"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "생성된 채팅방 정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoom"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (헤더에 사용자 ID가 없거나 요청 본문이 유효하지 않을 경우)"
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "서버 오류 (채팅방 생성 실패 시)"
           }
         }
       }
     },
-    "/list/challenge": {
-      "get": {
+    "/chat/{roomId}": {
+      "delete": {
+        "summary": "채팅방을 삭제합니다.",
         "tags": [
-          "Chat Rooms"
+          "Chat"
         ],
-        "description": "Fetch the list of challenge chat rooms.",
         "parameters": [
           {
-            "name": "user-id",
-            "in": "header",
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/message/{roomId}": {
-      "get": {
-        "tags": [
-          "Chat Rooms"
-        ],
-        "description": "Fetch messages for a specific chat room.",
-        "parameters": [
-          {
+            "in": "path",
             "name": "roomId",
-            "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            },
+            "description": "삭제할 방 ID"
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/create": {
-      "post": {
-        "tags": [
-          "Chat Rooms"
-        ],
-        "description": "Create a new chat room.",
-        "parameters": [
-          {
-            "name": "user-id",
-            "in": "header",
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "roomName": {
-                  "example": "any"
-                },
-                "type": {
-                  "example": "any"
-                },
-                "participants": {
-                  "example": "any"
+            "description": "삭제 성공 메시지",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteRoomResponse"
                 }
               }
             }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "서버 오류 (채팅방 삭제 실패 시)"
           }
         }
       }
     },
-    "/create/challenge/{challengeId}": {
-      "post": {
+    "/chat/list/group": {
+      "get": {
+        "summary": "그룹 채팅방 목록을 가져옵니다.",
         "tags": [
-          "Chat Rooms"
+          "Chat"
         ],
-        "description": "Create a new challenge chat room.",
         "parameters": [
           {
+            "in": "header",
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "사용자 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "채팅방 목록 조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatRoom"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (헤더에 사용자 ID가 없을 경우)"
+          },
+          "500": {
+            "description": "서버 오류 (채팅방 목록 조회 실패 시)"
+          }
+        }
+      }
+    },
+    "/chat/list/challenge": {
+      "get": {
+        "summary": "챌린지 채팅방 목록을 가져옵니다.",
+        "tags": [
+          "Chat"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "사용자 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "채팅방 목록 조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatRoom"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (헤더에 사용자 ID가 없을 경우)"
+          },
+          "500": {
+            "description": "서버 오류 (채팅방 목록 조회 실패 시)"
+          }
+        }
+      }
+    },
+    "/chat/message/{roomId}": {
+      "get": {
+        "summary": "채팅방의 메시지를 가져옵니다.",
+        "tags": [
+          "Chat"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "방 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "채팅 메시지 목록 조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessage"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류 (메시지 조회 실패 시)"
+          }
+        }
+      }
+    },
+    "/chat/create/challenge/{challengeId}": {
+      "post": {
+        "summary": "챌린지 채팅방을 생성합니다.",
+        "tags": [
+          "Chat"
+        ],
+        "parameters": [
+          {
+            "in": "path",
             "name": "challengeId",
-            "in": "path",
             "required": true,
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "roomName": {
-                  "example": "any"
-                },
-                "type": {
-                  "example": "any"
-                },
-                "owner": {
-                  "example": "any"
-                }
+              "type": "string"
+            },
+            "description": "챌린지 ID"
+          }
+        ],
+        "requestBody": {
+          "description": "챌린지 채팅방 생성 정보",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChallengeRoom"
               }
             }
           }
-        ],
+        },
         "responses": {
           "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/": {
-      "get": {
-        "tags": [
-          "Default"
-        ],
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/health": {
-      "get": {
-        "tags": [
-          "Default"
-        ],
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/upload": {
-      "post": {
-        "tags": [
-          "Image"
-        ],
-        "description": "Upload a normal image.",
-        "parameters": [
-          {
-            "name": "user-id",
-            "in": "header",
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "roomId": {
-                  "example": "any"
+            "description": "생성된 챌린지 채팅방 정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoom"
                 }
               }
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
           },
           "400": {
-            "description": "Bad Request"
+            "description": "잘못된 요청 (필수 필드 누락 시)"
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "서버 오류 (챌린지 채팅방 생성 실패 시)"
           }
         }
       }
     },
-    "/mission/upload": {
+    "/image/upload": {
       "post": {
+        "summary": "일반 채팅방에 이미지를 업로드합니다.",
         "tags": [
           "Image"
         ],
-        "description": "Upload a challenge image.",
+        "consumes": [
+          "multipart/form-data"
+        ],
         "parameters": [
           {
-            "name": "user-id",
             "in": "header",
-            "type": "string"
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "user ID"
           },
           {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "roomId": {
-                  "example": "any"
-                }
-              }
-            }
+            "in": "formData",
+            "name": "image",
+            "type": "file",
+            "required": true
+          },
+          {
+            "in": "formData",
+            "name": "roomId",
+            "type": "string",
+            "required": true
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "이미지 업로드 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadImageResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Bad Request"
+            "description": "필수 필드 누락 또는 파일 업로드 오류"
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "서버 오류"
           }
         }
       }
     },
-    "/mission/confirm": {
+    "/image/mission/upload": {
       "post": {
+        "summary": "챌린지 채팅방에 이미지를 업로드합니다.",
         "tags": [
           "Image"
         ],
-        "description": "Update the status of a challenge image.",
+        "consumes": [
+          "multipart/form-data"
+        ],
         "parameters": [
           {
-            "name": "user-id",
             "in": "header",
-            "type": "string"
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "사용자 ID"
           },
           {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "imageId": {
-                  "example": "any"
-                },
-                "status": {
-                  "example": "any"
-                }
-              }
-            }
+            "in": "formData",
+            "name": "image",
+            "type": "file",
+            "required": true
+          },
+          {
+            "in": "formData",
+            "name": "roomId",
+            "type": "string",
+            "required": true
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "챌린지 이미지 업로드 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadImageResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Bad Request"
+            "description": "필수 필드 누락 또는 파일 업로드 오류"
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "서버 오류"
+          }
+        }
+      }
+    },
+    "/image/mission/confirm": {
+      "post": {
+        "summary": "챌린지 이미지의 상태를 업데이트합니다.",
+        "tags": [
+          "Image"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "이미지 상태 업데이트 정보",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateImageStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "이미지 상태 업데이트 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateImageStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (필수 필드 누락 또는 유효하지 않은 상태값)"
+          },
+          "500": {
+            "description": "서버 오류"
           }
         }
       }
     }
-  }
+  },
+  "tags": []
 }
