@@ -1,7 +1,6 @@
 const redisClient = require('../redis/redisClient');
 const redisStream = require('../redis/redisStream');
 const db = require('../db/dbConfig');
-const { publish } = require('../redis/redisPubSub');
 
 // redis keys 생성
 const generateKeys = {

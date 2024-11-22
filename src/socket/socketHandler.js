@@ -114,8 +114,7 @@ const socketHandler = (io) => {
                 // Redis Stream에 메시지 추가
                 const result = await addToStream(streamKey, streamData);
                 
-                // 본인 제외한 방의 다른 참여자에게 메시지 전송
-                socket.to(roomId).emit('chat message', {
+                io.to(roomId).emit('chat message', {
                     ...streamData,
                     id: result.id
                 });
@@ -139,7 +138,7 @@ const socketHandler = (io) => {
 
             try {
                 const result = await addToStream(streamKey, streamData);
-                socket.to(roomId).emit('chat image', {
+                io.to(roomId).emit('chat image', {
                     ...streamData,
                     id: result.id
                 });

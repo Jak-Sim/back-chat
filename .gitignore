@@ -8,3 +8,5 @@ test-chatlist.html
 test-2.html
 uploads/
 .idea/
+.DS_Store
+.idea/dataSources.xml

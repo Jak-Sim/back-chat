@@ -1,17 +1,45 @@
 const { addToStream } = require('../redis/redisStream');
-const redisClient = require('../redis/redisClient');
 const path = require('path');
 const db = require('../db/dbConfig');
-const fs = require('fs');
+const AWS = require('aws-sdk');
 
-const saveNormalImage = async (roomId, userId, imageUrl) => {
+// AWS S3 클라이언트 초기화
+const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION,
+});
+
+const uploadToS3 = async (file) => {
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExtension}`;
+
+    const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `uploads/${fileName}`,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+    };
+
+    try {
+        const data = await s3.upload(params).promise();
+        return data.Location;
+    } catch (error) {
+        console.error('Error uploading file to S3:', error);
+        throw new Error('Failed to upload file to S3');
+    }
+};
+
+const saveNormalImage = async (roomId, userId, imageUrl, io) => {
     const connection = await db.getConnection();
+    const timestamp = Date.now();
     
     try {
-        // DB에 이미지 정보 저장
         const [result] = await connection.query(
-            'INSERT INTO chat_images (room_id, user_id, image_url, type) VALUES (?, ?, ?, ?)',
-            [roomId, userId, imageUrl, 'normal']
+            `INSERT INTO chat_images 
+            (user_id, room_id, image_url, upload_type, status, uploaded_at) 
+            VALUES (?, ?, ?, 'normal', 0, NOW())`,
+            [userId, roomId, imageUrl]
         );
 
         const imageId = result.insertId;
@@ -24,7 +52,7 @@ const saveNormalImage = async (roomId, userId, imageUrl) => {
             imageType: 'normal',
             imageUrl,
             imageId,
-            timestamp: Date.now()
+            timestamp
         };
 
         await addToStream(`room:${roomId}:stream`, messageData);
@@ -35,16 +63,16 @@ const saveNormalImage = async (roomId, userId, imageUrl) => {
     }
 };
 
-const saveChallengeImage = async (roomId, userId, challengeId, imageUrl) => {
+const saveChallengeImage = async (roomId, userId, imageUrl, io) => {
     const connection = await db.getConnection();
-    
+    const timestamp = Date.now();
+
     try {
-        // DB에 인증 사진 정보 저장
         const [result] = await connection.query(
-            `INSERT INTO challenge_photos 
-            (room_id, user_id, challenge_id, image_url, status) 
-            VALUES (?, ?, ?, ?, 'pending')`,
-            [roomId, userId, challengeId, imageUrl]
+            `INSERT INTO chat_images 
+            (user_id, room_id, image_url, upload_type, status, uploaded_at) 
+            VALUES (?, ?, ?, 'challenge', 0, NOW())`,
+            [userId, roomId, imageUrl]
         );
 
         const imageId = result.insertId;
@@ -57,8 +85,7 @@ const saveChallengeImage = async (roomId, userId, challengeId, imageUrl) => {
             imageType: 'challenge',
             imageUrl,
             imageId,
-            challengeId,
-            timestamp: Date.now()
+            timestamp
         };
 
         await addToStream(`room:${roomId}:stream`, messageData);
@@ -113,5 +140,6 @@ const updateImageStatus = async (photoId, status, reviewerId) => {
 module.exports = {
     saveNormalImage,
     saveChallengeImage,
-    updateImageStatus
+    updateImageStatus,
+    uploadToS3
 };

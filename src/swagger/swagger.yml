@@ -178,3 +178,212 @@ paths:
           description: Room deleted successfully
         500:
           description: Failed to delete room
+  /upload:
+    post:
+      tags:
+        - Image Upload
+      summary: Upload a normal image
+      description: Uploads a normal image to S3 and saves metadata to the database.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                roomId:
+                  type: string
+                  description: ID of the room to associate the image with.
+                image:
+                  type: string
+                  format: binary
+                  description: Image file to upload.
+      parameters:
+        - name: user-id
+          in: header
+          required: true
+          schema:
+            type: string
+            description: User ID of the uploader.
+      responses:
+        200:
+          description: Image uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  imageurl:
+                    type: string
+                    example: "https://s3.amazonaws.com/your-bucket-name/uploads/example.jpg"
+                  data:
+                    type: object
+                    description: Metadata about the uploaded image.
+        400:
+          description: Invalid request or file type.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Invalid file type."
+        500:
+          description: Failed to upload photo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Internal server error."
+
+  /mission/upload:
+    post:
+      tags:
+        - Image Upload
+      summary: Upload a challenge image
+      description: Uploads a challenge image to S3 and saves metadata to the database.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                roomId:
+                  type: string
+                  description: ID of the room to associate the image with.
+                image:
+                  type: string
+                  format: binary
+                  description: Image file to upload.
+      parameters:
+        - name: user-id
+          in: header
+          required: true
+          schema:
+            type: string
+            description: User ID of the uploader.
+      responses:
+        200:
+          description: Image uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  imageurl:
+                    type: string
+                    example: "https://s3.amazonaws.com/your-bucket-name/uploads/example.jpg"
+                  data:
+                    type: object
+                    description: Metadata about the uploaded image.
+        400:
+          description: Invalid request or file type.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Invalid file type."
+        500:
+          description: Failed to upload challenge photo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Internal server error."
+
+  /mission/confirm:
+    post:
+      tags:
+        - Image Upload
+      summary: Update the status of a challenge image
+      description: Updates the status of a challenge image (e.g., accepted or rejected).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                imageId:
+                  type: integer
+                  description: ID of the image to update.
+                status:
+                  type: string
+                  enum: [accepted, rejected]
+                  description: New status for the image.
+      parameters:
+        - name: user-id
+          in: header
+          required: true
+          schema:
+            type: string
+            description: User ID of the reviewer.
+      responses:
+        200:
+          description: Status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Details of the updated status.
+        400:
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Invalid request data."
+        500:
+          description: Failed to update photo status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Internal server error."          

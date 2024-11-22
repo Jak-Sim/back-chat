@@ -1,4 +1,4 @@
-const socket = io('http://210.183.4.67:8080', {
+const socket = io('http://210.183.4.67:8080/', {
     withCredentials: true,
     transports: ['websocket'],
     reconnection: true,
@@ -270,6 +270,126 @@ document.getElementById('form').addEventListener('submit', function(e) {
     }
 });
 
+
+// 이미지 업로드 함수
+async function uploadImage(file, type = 'group') {
+    if (!selectedRoom) {
+        setAlertMessage('Please select a chat room first!', true);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('roomId', selectedRoom);
+
+    try {
+        const endpoint = type === 'group' ? 
+            'http://localhost:3000/chat/image/upload' : 
+            'http://localhost:3000/chat/image/mission/upload';
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'user-id': userId
+            },
+            body: formData
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const result = await response.json();
+        console.log('Image upload result:', result);
+        
+        if (result.success) {
+            setAlertMessage('Image uploaded successfully!');
+        
+            // 소켓을 통해 업로드한 이미지 정보를 서버로 전송
+            socket.emit('chat image', {
+                roomId: selectedRoom,
+                userId,
+                imageUrl: result.imageUrl, // S3 URL
+            });
+        
+            // 업로드한 이미지를 UI에 즉시 반영 (자신의 메시지)
+            displayMessage({
+                roomId: selectedRoom,
+                userId,
+                imageUrl: result.imageUrl,
+                type: 'image',
+                timestamp: new Date().toISOString(),
+            }, true);
+        }
+
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        setAlertMessage('Failed to upload image. Please try again.', true);
+    }
+}
+
+// 이미지 업로드 버튼 및 input 요소 생성
+const createImageUploadElements = () => {
+    const form = document.getElementById('form');
+    
+    const imageInput = document.createElement('input');
+    imageInput.type = 'file';
+    imageInput.id = 'image-input';
+    imageInput.accept = 'image/*';
+    imageInput.style.display = 'none';
+
+    const imageButton = document.createElement('button');
+    imageButton.type = 'button';
+    imageButton.id = 'image-button';
+    imageButton.innerHTML = '📷';
+    imageButton.title = 'Upload Image';
+    
+    imageButton.onclick = () => imageInput.click();
+    
+    imageInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const roomType = document.querySelector('input[name="roomType"]:checked').value;
+            await uploadImage(file, roomType);
+            imageInput.value = ''; // Reset input
+        }
+    };
+
+    form.insertBefore(imageInput, form.firstChild);
+    form.insertBefore(imageButton, form.firstChild);
+};
+
+function displayMessage(msg, isOwn = false) {
+    const messageList = document.getElementById('messages');
+    const li = document.createElement('li');
+    li.className = isOwn ? 'message own' : 'message';
+
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+
+    const sender = document.createElement('span');
+    sender.className = 'sender';
+    sender.textContent = isOwn ? 'You' : msg.userId;
+
+    if (msg.type === 'image') {
+        const img = document.createElement('img');
+        img.src = msg.imageUrl;
+        img.alt = 'Uploaded Image';
+        img.style.maxWidth = '100px';
+        img.style.borderRadius = '5px';
+        messageContent.appendChild(sender);
+        messageContent.appendChild(img);
+    } else {
+        const text = document.createElement('span');
+        text.className = 'text';
+        text.textContent = msg.message;
+
+        messageContent.appendChild(sender);
+        messageContent.appendChild(text);
+    }
+
+    li.appendChild(messageContent);
+    messageList.appendChild(li);
+    messageList.scrollTop = messageList.scrollHeight; // 최신 메시지로 스크롤
+}
 // 소켓 이벤트 리스너
 socket.on('chat message', function(msg) {
     if (msg.roomId === selectedRoom && msg.userId !== userId) {
@@ -277,6 +397,13 @@ socket.on('chat message', function(msg) {
             msg.id = Date.now().toString();
         }
         displayMessage(msg);
+    }
+});
+
+socket.on('chat image', (data) => {
+    console.log('New image received:', data);
+    if (data.roomId === selectedRoom) {
+        displayMessage(data);
     }
 });
 
@@ -306,7 +433,10 @@ socket.on('reconnect_failed', () => {
 });
 
 // 초기화
-window.addEventListener('load', fetchChatRooms);
+window.addEventListener('load', () => {
+    fetchChatRooms();
+    createImageUploadElements();
+});
 
 // 채팅방 타입 변경 이벤트
 document.getElementById('group').addEventListener('change', fetchChatRooms);
