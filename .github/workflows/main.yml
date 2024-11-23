@@ -15,11 +15,12 @@ jobs:
 
     - name: Set up SSH
       run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.AWS_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
-        ssh-keyscan -H ${{ secrets.AWS_HOST }} >> ~/.ssh/known_hosts
+        scp -r ./ ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:/home/ec2-user/app
+        ssh ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << 'EOF'
+          cd /home/ec2-user/app
+          npm install
+          pm2 restart all || pm2 start src/server.js --name "jaksim-chat"
+        EOF
 
     - name: Deploy to EC2
       run: |
