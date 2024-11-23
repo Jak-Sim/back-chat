@@ -8,25 +8,34 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up SSH
-      run: |
-        scp -r ./ ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:/home/ec2-user/app
-        ssh ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << 'EOF'
-          cd /home/ec2-user/app
-          npm install
-          pm2 restart all || pm2 start src/server.js --name "jaksim-chat"
-        EOF
+      - name: Configure SSH
+        env:
+          AWS_KEY: ${{ secrets.AWS_KEY }}
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AWS_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $AWS_HOST >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
-    - name: Deploy to EC2
-      run: |
-        scp -r . ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }}:/home/ec2-user/app
-        ssh ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << 'EOF'
-          cd /home/ec2-user/app
-          npm install
-          pm2 restart all || pm2 start src/server.js --name "jaksim-chat"
-        EOF
+      - name: Deploy to EC2
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+        run: |
+          # 앱 디렉토리 생성
+          ssh $AWS_USER@$AWS_HOST 'mkdir -p /home/ec2-user/app'
+          
+          # 파일 전송 및 배포
+          scp -r ./* $AWS_USER@$AWS_HOST:/home/ec2-user/app
+          ssh $AWS_USER@$AWS_HOST << 'EOF'
+            cd /home/ec2-user/app
+            npm install
+            pm2 restart all || pm2 start src/server.js --name "jaksim-chat"
+          EOF
