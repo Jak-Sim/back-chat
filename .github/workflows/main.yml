@@ -16,8 +16,8 @@ jobs:
     - name: Set up SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.AWS_KEY }}" > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
+        echo "${{ secrets.AWS_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.AWS_HOST }} >> ~/.ssh/known_hosts
 
     - name: Deploy to EC2
@@ -26,5 +26,5 @@ jobs:
         ssh ${{ secrets.AWS_USER }}@${{ secrets.AWS_HOST }} << 'EOF'
           cd /home/ec2-user/app
           npm install
-          pm2 restart all || pm2 start src/server.js --name "my-app"
+          pm2 restart all || pm2 start src/server.js --name "jaksim-chat"
         EOF
