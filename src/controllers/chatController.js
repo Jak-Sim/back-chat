@@ -4,12 +4,14 @@ const {
   getChatList,
   createRoom,
   createChallengeRoom,
+  addParticipants,
 } = require('../services/chatService');
 
 const CreateChatRoomDTO = require('../dto/CreateChatRoom.dto');
 const CreateChallengeRoomDTO = require('../dto/CreateChallengeRoom.dto');
 const ChatRoomDTO = require('../dto/ChatRoom.dto');
 const ChatMessageDTO = require('../dto/ChatMessage.dto');
+const AddParticipantsDTO = require('../dto/AddParticipants.dto');
 
 /**
  * @swagger
@@ -48,19 +50,106 @@ const createChatRoomController = async (req, res) => {
   const createUserId = req.headers['user-id'];
 
   if (!createUserId) {
-    console.log('User ID is missing in the request headers.');
     return res.status(400).json({ message: 'User ID is required in the header' });
   }
 
-  try {
-    const { roomName, type, participants } = req.body;
-    const createChatRoomDTO = new CreateChatRoomDTO(roomName, type, participants);
+  const { roomName, type, participants } = req.body;
 
-    const result = await createRoom(createChatRoomDTO, createUserId);
-    res.status(201).json(new ChatRoomDTO(result.roomId, result.roomName, result.roomType));
+  if (!roomName || !type || !Array.isArray(participants)) {
+    return res.status(400).json({ message: 'Invalid request body: roomName, type, and participants are required' });
+  }
+
+  if (participants.length < 2) {
+    return res.status(400).json({ message: 'Failed to create room: must select at least 2 participants' });
+  }
+
+  try {
+    const createChatRoomDTO = new CreateChatRoomDTO(roomName, type, participants);
+    const result = await createRoom(createChatRoomDTO);
+    return res.status(201).json(new ChatRoomDTO(result.roomId, result.roomName, result.roomType));
   } catch (error) {
     console.error('Failed to create room:', error);
-    res.status(500).json({ message: 'Failed to create room' });
+    return res.status(500).json({ message: 'Failed to create room' });
+  }
+};
+
+/**
+ * @swagger
+ * /chat/add:
+ *   post:
+ *     summary: 채팅방에 인원을 추가합니다.
+ *     tags:
+ *       - Chat
+ *     parameters:
+ *       - in: header
+ *         name: user-id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       description: 추가할 인원과 방 ID
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               roomId:
+ *                 type: string
+ *                 description: 추가할 채팅방 ID
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 추가할 사용자 ID 목록
+ *     responses:
+ *       '200':
+ *         description: 인원 추가 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Participants added successfully
+ *       '400':
+ *         description: 잘못된 요청 (요청 데이터가 유효하지 않을 경우)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid request data
+ *       '500':
+ *         description: 서버 오류 (추가 실패 시)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Failed to add participants
+ */
+const addParticipantsController = async (req, res) => {
+  try {
+    const createUserId = req.headers['user-id'];
+
+    if (!createUserId) {
+      return res.status(400).json({ message: 'User ID is required in the header' });
+    }
+
+    const { roomId, participants } = req.body;
+    const addParticipantsDTO = new AddParticipantsDTO(roomId, participants);
+
+    await addParticipants(addParticipantsDTO.roomId, addParticipantsDTO.participants);
+
+    res.status(200).json({ message: 'Participants added successfully' });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -304,4 +393,5 @@ module.exports = {
   getChallengeRoomListController,
   getChatMessagesController,
   createChallengeRoomController,
+  addParticipantsController,
 };

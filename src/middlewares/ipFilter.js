@@ -1,4 +1,3 @@
-require('dotenv').config();
 const { IpFilter, IpDeniedError } = require('express-ipfilter');
 
 const ips = process.env.ALLOWED_IPS ? process.env.ALLOWED_IPS.split(',') : [];
@@ -16,7 +15,6 @@ if (ips.length === 0) {
   process.exit(1);
 }
 
-// IP 필터 미들웨어 설정
 const ipFilterMiddleware = IpFilter(ips, { mode: 'allow' });
 
 const ipFilterErrorHandler = (err, req, res, next) => {
@@ -27,11 +25,4 @@ const ipFilterErrorHandler = (err, req, res, next) => {
   }
 };
 
-const logRequestWithIpName = (req, res, next) => {
-  const ip = req.ip;
-  const name = ipNameMap[ip] || ip;
-  console.log(`Access granted to: ${name}`);
-  next();
-};
-
-module.exports = { ipFilterMiddleware, ipFilterErrorHandler, logRequestWithIpName };
+module.exports = { ipFilterMiddleware, ipFilterErrorHandler };

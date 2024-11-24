@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://210.183.4.67:8080',
+        url: 'http://ec2-43-201-97-119.ap-northeast-2.compute.amazonaws.com',
         description: 'Development server',
       },
     ],

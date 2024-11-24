@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://210.183.4.67:8080",
+      "url": "http://ec2-43-201-97-119.ap-northeast-2.compute.amazonaws.com",
       "description": "Development server"
     }
   ],
@@ -244,6 +244,98 @@
           },
           "500": {
             "description": "서버 오류 (채팅방 생성 실패 시)"
+          }
+        }
+      }
+    },
+    "/chat/add": {
+      "post": {
+        "summary": "채팅방에 인원을 추가합니다.",
+        "tags": [
+          "Chat"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "추가할 인원과 방 ID",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "roomId": {
+                    "type": "string",
+                    "description": "추가할 채팅방 ID"
+                  },
+                  "participants": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "추가할 사용자 ID 목록"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "인원 추가 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Participants added successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (요청 데이터가 유효하지 않을 경우)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid request data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류 (추가 실패 시)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Failed to add participants"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

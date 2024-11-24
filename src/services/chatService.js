@@ -11,6 +11,28 @@ const generateKeys = {
 const createRoom = async (roomName, type, participants, createUserId) => {
     console.log(`[ChatService] Creating new room: ${roomName}, type: ${type}`);
     const connection = await db.getConnection();
+
+    const [existingRooms] = await connection.query(
+        `
+        SELECT cr.room_id
+        FROM chat_rooms cr
+        JOIN chat_participants cp ON cr.room_id = cp.room_id
+        WHERE cr.room_type = ? 
+        GROUP BY cr.room_id
+        HAVING COUNT(*) = ? 
+        AND SUM(cp.user_id IN (?)) = ?;
+        `,
+        [type, participants.length, participants, participants.length]
+    );
+
+    if (existingRooms.length > 0) {
+        const existingRoomId = existingRooms[0].room_id;
+        console.log(`[ChatService] Found existing room: ${existingRoomId}`);
+        return { 
+            message: 'Room already exists', 
+            roomId: existingRoomId 
+        };
+    }
     
     try {
         const [result] = await connection.query(
@@ -22,7 +44,7 @@ const createRoom = async (roomName, type, participants, createUserId) => {
 
         for (const userId of participants) {
             await connection.query(
-                'INSERT INTO chat_participants (room_id, user_id) VALUES (?, ?)',
+                'INSERT INTO chat_participants (room_id, user_id, is_active) VALUES (?, ?, 1)', // 1: is_active
                 [roomId, userId]
             );
         }
@@ -48,6 +70,43 @@ const createRoom = async (roomName, type, participants, createUserId) => {
     } catch (error) {
         console.error('[ChatService] Error creating room:', error);
         throw new Error('Failed to create room');
+    } finally {
+        connection.release();
+    }
+};
+
+const addParticipants = async (roomId, participants) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        // check if room exists
+        const [rooms] = await connection.query('SELECT room_id FROM chat_rooms WHERE room_id = ?', [roomId]);
+        if (rooms.length === 0) {
+            throw new Error(`Room with id ${roomId} does not exist.`);
+        }
+        // check if participants are already in the room
+        const [existingParticipants] = await connection.query(
+            'SELECT user_id FROM chat_participants WHERE room_id = ? AND user_id IN (?)',
+            [roomId, participants]
+        );
+
+        if (existingParticipants.length > 0) {
+            const existingUserIds = existingParticipants.map(row => row.user_id);
+            throw new Error(`Users with IDs [${existingUserIds.join(', ')}] are already in the room.`);
+        }
+
+        for (const userId of participants) {
+            await connection.query(
+                'INSERT INTO chat_participants (room_id, user_id, is_active) VALUES (?, ?, 1)',
+                [roomId, userId]
+            );
+        }
+
+        await connection.commit();
+    } catch (error) {
+        console.error('Error adding participants:', error.message);
+        await connection.rollback();
+        throw error;
     } finally {
         connection.release();
     }
@@ -177,5 +236,6 @@ module.exports = {
     saveMessage, 
     getChatList,
     getChatMessages,
-    createChallengeRoom
+    createChallengeRoom,
+    addParticipants
 };
