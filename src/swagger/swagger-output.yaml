@@ -1,0 +1,449 @@
+openapi: 3.0.0
+info:
+  title: Jak-Sim:Chat API
+  version: 1.0.0
+  description: API documentation for the Chat application
+servers:
+  - url: http://ec2-43-201-97-119.ap-northeast-2.compute.amazonaws.com
+    description: Development server
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    ChatRoom:
+      type: object
+      required:
+        - roomId
+        - roomName
+        - roomType
+      properties:
+        roomId:
+          type: string
+        roomName:
+          type: string
+        roomType:
+          type: string
+          enum:
+            - group
+            - challenge
+    CreateChatRoom:
+      type: object
+      required:
+        - roomName
+        - type
+        - participants
+      properties:
+        roomName:
+          type: string
+        type:
+          type: string
+          enum:
+            - group
+            - challenge
+        participants:
+          type: array
+          items:
+            type: string
+          description: 참여자 ID 목록
+    CreateChallengeRoom:
+      type: object
+      required:
+        - roomName
+        - type
+        - owner
+      properties:
+        roomName:
+          type: string
+        type:
+          type: string
+        owner:
+          type: string
+          description: room owner's ID
+    ChatMessage:
+      type: object
+      required:
+        - messageId
+        - roomId
+        - senderId
+        - content
+        - type
+        - timestamp
+      properties:
+        messageId:
+          type: string
+        roomId:
+          type: string
+        senderId:
+          type: string
+          description: message sender ID
+        content:
+          type: string
+        type:
+          type: string
+          enum:
+            - text
+            - image
+          description: "'text' or 'image'"
+        timestamp:
+          type: string
+          format: date-time
+    DeleteRoomResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        message:
+          type: string
+    UploadImageResponse:
+      type: object
+      required:
+        - success
+        - imageUrl
+      properties:
+        success:
+          type: boolean
+        imageUrl:
+          type: string
+        data:
+          type: object
+          description: optional data
+          additionalProperties: true
+    UpdateImageStatusRequest:
+      type: object
+      required:
+        - imageId
+        - status
+      properties:
+        imageId:
+          type: string
+        status:
+          type: string
+          enum:
+            - accepted
+            - rejected
+          description: "'accepted' or 'rejected'"
+    UpdateImageStatusResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          description: success flag
+        data:
+          type: object
+          description: updated data
+          additionalProperties: true
+paths:
+  /chat/create:
+    post:
+      summary: 채팅방을 생성합니다.
+      tags:
+        - Chat
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+          description: 사용자 ID
+      requestBody:
+        description: 채팅방 생성 정보
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChatRoom"
+      responses:
+        "201":
+          description: 생성된 채팅방 정보
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatRoom"
+        "400":
+          description: 잘못된 요청 (헤더에 사용자 ID가 없거나 요청 본문이 유효하지 않을 경우)
+        "500":
+          description: 서버 오류 (채팅방 생성 실패 시)
+  /chat/add:
+    post:
+      summary: 채팅방에 인원을 추가합니다.
+      tags:
+        - Chat
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: 추가할 인원과 방 ID
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomId:
+                  type: string
+                  description: 추가할 채팅방 ID
+                participants:
+                  type: array
+                  items:
+                    type: string
+                  description: 추가할 사용자 ID 목록
+      responses:
+        "200":
+          description: 인원 추가 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Participants added successfully
+        "400":
+          description: 잘못된 요청 (요청 데이터가 유효하지 않을 경우)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid request data
+        "500":
+          description: 서버 오류 (추가 실패 시)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Failed to add participants
+  /chat/{roomId}:
+    delete:
+      summary: 채팅방을 삭제합니다.
+      tags:
+        - Chat
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+          description: 삭제할 방 ID
+      responses:
+        "200":
+          description: 삭제 성공 메시지
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteRoomResponse"
+        "500":
+          description: 서버 오류 (채팅방 삭제 실패 시)
+  /chat/list/group:
+    get:
+      summary: 그룹 채팅방 목록을 가져옵니다.
+      tags:
+        - Chat
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+          description: 사용자 ID
+      responses:
+        "200":
+          description: 채팅방 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatRoom"
+        "400":
+          description: 잘못된 요청 (헤더에 사용자 ID가 없을 경우)
+        "500":
+          description: 서버 오류 (채팅방 목록 조회 실패 시)
+  /chat/list/challenge:
+    get:
+      summary: 챌린지 채팅방 목록을 가져옵니다.
+      tags:
+        - Chat
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+          description: 사용자 ID
+      responses:
+        "200":
+          description: 채팅방 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatRoom"
+        "400":
+          description: 잘못된 요청 (헤더에 사용자 ID가 없을 경우)
+        "500":
+          description: 서버 오류 (채팅방 목록 조회 실패 시)
+  /chat/message/{roomId}:
+    get:
+      summary: 채팅방의 메시지를 가져옵니다.
+      tags:
+        - Chat
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+          description: 방 ID
+      responses:
+        "200":
+          description: 채팅 메시지 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+        "500":
+          description: 서버 오류 (메시지 조회 실패 시)
+  /chat/create/challenge/{challengeId}:
+    post:
+      summary: 챌린지 채팅방을 생성합니다.
+      tags:
+        - Chat
+      parameters:
+        - in: path
+          name: challengeId
+          required: true
+          schema:
+            type: string
+          description: 챌린지 ID
+      requestBody:
+        description: 챌린지 채팅방 생성 정보
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChallengeRoom"
+      responses:
+        "201":
+          description: 생성된 챌린지 채팅방 정보
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatRoom"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 시)
+        "500":
+          description: 서버 오류 (챌린지 채팅방 생성 실패 시)
+  /image/upload:
+    post:
+      summary: 일반 채팅방에 이미지를 업로드합니다.
+      tags:
+        - Image
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+          description: user ID
+        - in: formData
+          name: image
+          type: file
+          required: true
+        - in: formData
+          name: roomId
+          type: string
+          required: true
+      responses:
+        "200":
+          description: 이미지 업로드 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadImageResponse"
+        "400":
+          description: 필수 필드 누락 또는 파일 업로드 오류
+        "500":
+          description: 서버 오류
+  /image/mission/upload:
+    post:
+      summary: 챌린지 채팅방에 이미지를 업로드합니다.
+      tags:
+        - Image
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+          description: 사용자 ID
+        - in: formData
+          name: image
+          type: file
+          required: true
+        - in: formData
+          name: roomId
+          type: string
+          required: true
+      responses:
+        "200":
+          description: 챌린지 이미지 업로드 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadImageResponse"
+        "400":
+          description: 필수 필드 누락 또는 파일 업로드 오류
+        "500":
+          description: 서버 오류
+  /image/mission/confirm:
+    post:
+      summary: 챌린지 이미지의 상태를 업데이트합니다.
+      tags:
+        - Image
+      parameters:
+        - in: header
+          name: user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: 이미지 상태 업데이트 정보
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateImageStatusRequest"
+      responses:
+        "200":
+          description: 이미지 상태 업데이트 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateImageStatusResponse"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 유효하지 않은 상태값)
+        "500":
+          description: 서버 오류
+tags: []

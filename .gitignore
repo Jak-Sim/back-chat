@@ -10,5 +10,3 @@ uploads/
 .idea/
 .DS_Store
 .idea/dataSources.xml
-src/swagger/swagger-output.yaml
-src/swagger/swagger-output.json
