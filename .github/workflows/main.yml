@@ -36,6 +36,23 @@ jobs:
           scp -r ./* $AWS_USER@$AWS_HOST:/home/ec2-user/app
           ssh $AWS_USER@$AWS_HOST << 'EOF'
             cd /home/ec2-user/app
+
+            # .env 파일 생성
+            cat <<EOT > .env
+            PORT=${{ secrets.PORT }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_DB=${{ secrets.DB_DB }}
+
+            BASIC_AUTH_USER=${{ secrets.BASIC_AUTH_USER }}
+            BASIC_AUTH_PASSWORD=${{ secrets.BASIC_AUTH_PASSWORD }}
+
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            EOT
             npm install
             pm2 restart all || pm2 start src/server.js --name "jaksim-chat"
           EOF
