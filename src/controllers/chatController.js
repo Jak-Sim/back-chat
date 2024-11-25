@@ -65,6 +65,7 @@ const createChatRoomController = async (req, res) => {
 
   try {
     const createChatRoomDTO = new CreateChatRoomDTO(roomName, type, participants);
+    console.log('createChatRoomDTO:', createChatRoomDTO);
     const result = await createRoom(createChatRoomDTO);
     return res.status(201).json(new ChatRoomDTO(result.roomId, result.roomName, result.roomType));
   } catch (error) {
