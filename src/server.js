@@ -24,7 +24,7 @@ app.use(basicAuth({
 }));
 
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://210.183.4.67:8081', 'http://210.183.4.67:8080' , 'http://localhost:3001'],
+    origin: ['*'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'user-id'],
     credentials: true 
@@ -37,7 +37,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://210.183.4.67:8081', 'http://210.183.4.67:8080', 'http://localhost:3001'],
+        origin: ['*'],
         methods: ['GET', 'POST'],
         credentials: true
     }
